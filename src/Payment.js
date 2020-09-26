@@ -7,12 +7,13 @@ import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import CurrencyFormat from 'react-currency-format';
 import { getBasketTotal } from './reducer';
 import axios from './axios'
+import {db} from './firebase'
 
 
 function Payment() {
     const [{basket,user}, dispatch] = useStateValue();
     const history = useHistory();
-    
+
     const stripe = useStripe();
     const elements = useElements();
 
@@ -36,6 +37,9 @@ function Payment() {
         getClientSecret();
     }, [basket])
 
+    console.log('The secret is>>>>', clientSecret);
+    console.log('user', user)
+
     const handleSubmit = async(event) => {
         //do all the stripe stuff
         event.preventDefault();
@@ -46,11 +50,26 @@ function Payment() {
                 card: elements.getElement(CardElement)
             }
         }).then(({paymentIntent}) => {
-            //paymentIntent = payment confeirmation
+            //paymentIntent = payment confirmation
+
+            db
+            .collection('users')
+            .doc(user?.uid)
+            .collection('orders')
+            .doc(paymentIntent.id)
+            .set({
+                basket:basket,
+                amount: paymentIntent.amount,
+                created: paymentIntent.created
+            })
 
             setSucceeded(true);
             setError(null)
             setProcessing(false)
+
+            dispatch({
+                type: 'EMPTY_BASKET'
+            })
 
             history.replace('/orders')
 
@@ -70,7 +89,7 @@ function Payment() {
         <div className="payment">
                 <div className="payment__container">
                     <h1>
-    Checkout (<Link to="/checkout">{basket?.lenght} items</Link>)
+    Checkout (<Link to="/checkout">{basket?.length} items</Link>)
                     </h1>
                 </div>
                 {/* Payment Section- Delivery address */}
